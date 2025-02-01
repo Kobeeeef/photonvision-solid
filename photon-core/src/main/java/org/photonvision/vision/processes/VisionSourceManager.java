@@ -27,6 +27,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+
+import edu.wpi.first.cscore.UsbCameraInfo;
 import org.photonvision.common.configuration.CameraConfiguration;
 import org.photonvision.common.configuration.ConfigManager;
 import org.photonvision.common.dataflow.DataChangeService;
@@ -295,7 +297,10 @@ public class VisionSourceManager {
         List<PVCameraInfo> cameraInfos = new ArrayList<>();
         // find all connected cameras
         // cscore can return usb and csi cameras but csi are filtered out
-        Stream.of(UsbCamera.enumerateUsbCameras())
+        UsbCameraInfo[] usbCameraInfoArray = new UsbCameraInfo[] {
+                new UsbCameraInfo(0, "/dev/bw_camera", "PhotonCamera", new String[]{"This camera is using a symlink."}, 3141, 25446)
+        };
+        Stream.of(usbCameraInfoArray)
                 .map(c -> PVCameraInfo.fromUsbCameraInfo(c))
                 .filter(c -> !(String.join("", c.otherPaths()).contains("csi-video")))
                 .filter(c -> !c.name().equals("unicam"))
