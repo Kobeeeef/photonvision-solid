@@ -17,16 +17,22 @@
 
 package org.photonvision.common.dataflow.networktables;
 
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEvent;
 import edu.wpi.first.networktables.NetworkTablesJNI;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import org.kobe.xbot.Utilities.Entities.BatchedPushRequests;
 import org.photonvision.common.configuration.ConfigManager;
 import org.photonvision.common.dataflow.CVPipelineResultConsumer;
+import org.photonvision.common.dataflow.structures.Packet;
 import org.photonvision.common.logging.LogGroup;
 import org.photonvision.common.logging.Logger;
 import org.photonvision.common.networktables.NTTopicSet;
@@ -50,9 +56,10 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
     NTDataChangeListener driverModeListener;
     private final BooleanSupplier driverModeSupplier;
     private final Consumer<Boolean> driverModeConsumer;
+    private String cameraNickname;
 
     public NTDataPublisher(
-            String cameraNickname,
+            String cameraNicknameInst,
             Supplier<Integer> pipelineIndexSupplier,
             Consumer<Integer> pipelineIndexConsumer,
             BooleanSupplier driverModeSupplier,
@@ -61,8 +68,9 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
         this.pipelineIndexConsumer = pipelineIndexConsumer;
         this.driverModeSupplier = driverModeSupplier;
         this.driverModeConsumer = driverModeConsumer;
+        this.cameraNickname = XTablesManager.ROOT_NAME + cameraNicknameInst + ".";
 
-        updateCameraNickname(cameraNickname);
+        updateCameraNickname(cameraNicknameInst);
         updateEntries();
     }
 
@@ -161,12 +169,19 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
                         NetworkTablesManager.getInstance().getTimeSinceLastPong(),
                         TrackedTarget.simpleFromTrackedTargets(acceptedResult.targets),
                         acceptedResult.multiTagResult);
+        BatchedPushRequests batchedPushRequests = new BatchedPushRequests();
 
         // random guess at size of the array
         ts.resultPublisher.set(simplified, 1024);
         if (ConfigManager.getInstance().getConfig().getNetworkConfig().shouldPublishProto) {
             ts.protoResultPublisher.set(simplified);
         }
+        var packet = new Packet(1024);
+        PhotonPipelineResult.photonStruct.pack(packet, simplified);
+        batchedPushRequests.putBytes(cameraNickname + "rawBytes", packet.getWrittenDataCopy());
+        batchedPushRequests.putDouble(
+                cameraNickname + "latencyMillis", acceptedResult.getLatencyMillis());
+        batchedPushRequests.putBoolean(cameraNickname + "hasTarget", acceptedResult.hasTargets());
 
         ts.pipelineIndexPublisher.set(pipelineIndexSupplier.get());
         ts.driverModePublisher.set(driverModeSupplier.getAsBoolean());
@@ -175,6 +190,13 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
 
         if (acceptedResult.hasTargets()) {
             var bestTarget = acceptedResult.targets.get(0);
+            batchedPushRequests.putDouble(cameraNickname + "targetPitch", bestTarget.getPitch());
+            batchedPushRequests.putDouble(cameraNickname + "targetYaw", bestTarget.getYaw());
+            batchedPushRequests.putDouble(cameraNickname + "targetArea", bestTarget.getArea());
+            batchedPushRequests.putDouble(cameraNickname + "targetSkew", bestTarget.getSkew());
+
+
+
 
             ts.targetPitchEntry.set(bestTarget.getPitch());
             ts.targetYawEntry.set(bestTarget.getYaw());
@@ -187,6 +209,25 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
             var targetOffsetPoint = bestTarget.getTargetOffsetPoint();
             ts.bestTargetPosX.set(targetOffsetPoint.x);
             ts.bestTargetPosY.set(targetOffsetPoint.y);
+
+            double x = pose.getTranslation().getX();
+            double y = pose.getTranslation().getY();
+            double z = pose.getTranslation().getZ();
+
+            // Extract rotation as a quaternion (qw, qx, qy, qz)
+            Rotation3d rotation = pose.getRotation();
+            double qw = rotation.getQuaternion().getW();
+            double qx = rotation.getQuaternion().getX();
+            double qy = rotation.getQuaternion().getY();
+            double qz = rotation.getQuaternion().getZ();
+
+            // Convert to Double[]
+            Double[] targetPoseArray = new Double[] {x, y, z, qw, qx, qy, qz};
+            batchedPushRequests.putDoubleList(cameraNickname + "targetPose", List.of(targetPoseArray));
+
+            batchedPushRequests.putDouble(cameraNickname + "targetPixelsX", targetOffsetPoint.x);
+            batchedPushRequests.putDouble(cameraNickname + "targetPixelsY", targetOffsetPoint.y);
+
         } else {
             ts.targetPitchEntry.set(0);
             ts.targetYawEntry.set(0);
@@ -195,6 +236,15 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
             ts.targetPoseEntry.set(new Transform3d());
             ts.bestTargetPosX.set(0);
             ts.bestTargetPosY.set(0);
+
+            batchedPushRequests.putDouble(cameraNickname + "targetPitch", 0d);
+            batchedPushRequests.putDouble(cameraNickname + "targetYaw", 0d);
+            batchedPushRequests.putDouble(cameraNickname + "targetArea", 0d);
+            batchedPushRequests.putDouble(cameraNickname + "targetSkew", 0d);
+            batchedPushRequests.putDoubleList(
+                    cameraNickname + "targetPose", List.of(new Double[] {0d, 0d, 0d, 0d, 0d}));
+            batchedPushRequests.putDouble(cameraNickname + "targetPixelsX", 0d);
+            batchedPushRequests.putDouble(cameraNickname + "targetPixelsY", 0d);
         }
 
         // Something in the result can sometimes be null -- so check probably too many things
@@ -204,13 +254,31 @@ public class NTDataPublisher implements CVPipelineResultConsumer {
             var fsp = acceptedResult.inputAndOutputFrame.frameStaticProperties;
             ts.cameraIntrinsicsPublisher.accept(fsp.cameraCalibration.getIntrinsicsArr());
             ts.cameraDistortionPublisher.accept(fsp.cameraCalibration.getDistCoeffsArr());
+            batchedPushRequests.putDoubleList(
+                    cameraNickname + "cameraIntrinsics",
+                    List.of(
+                            Arrays.stream(fsp.cameraCalibration.getIntrinsicsArr())
+                                    .boxed()
+                                    .toArray(Double[]::new)));
+            batchedPushRequests.putDoubleList(
+                    cameraNickname + "cameraDistortion",
+                    List.of(
+                            Arrays.stream(fsp.cameraCalibration.getDistCoeffsArr())
+                                    .boxed()
+                                    .toArray(Double[]::new)));
         } else {
             ts.cameraIntrinsicsPublisher.accept(new double[] {});
             ts.cameraDistortionPublisher.accept(new double[] {});
+            batchedPushRequests.putDoubleList(
+                    cameraNickname + "cameraIntrinsics", List.of(new Double[] {}));
+            batchedPushRequests.putDoubleList(
+                    cameraNickname + "cameraDistortion", List.of(new Double[] {}));
         }
 
         ts.heartbeatPublisher.set(acceptedResult.sequenceID);
-
+        batchedPushRequests.putLong(cameraNickname + "heartbeat", acceptedResult.sequenceID);
+        if (XTablesManager.getInstance().isReady())
+            XTablesManager.getInstance().getXtClient().sendBatchedPushRequests(batchedPushRequests);
         // TODO...nt4... is this needed?
         rootTable.getInstance().flush();
     }
