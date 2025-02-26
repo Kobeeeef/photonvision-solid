@@ -31,7 +31,7 @@ dependencies {
     implementation "org.jogamp.jogl:jogl-all:$joglVersion"
     implementation "org.jogamp.gluegen:gluegen-rt:$joglVersion:natives-linux-aarch64"
     implementation "org.jogamp.jogl:jogl-all:$joglVersion:natives-linux-aarch64"
-    implementation "org.kobe.xbot:xtables:5.2.9"
+    implementation "org.kobe.xbot:xtables:5.3.6"
 
     // Zip
     implementation 'org.zeroturnaround:zt-zip:1.14'

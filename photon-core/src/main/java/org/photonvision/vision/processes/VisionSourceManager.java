@@ -278,7 +278,7 @@ public class VisionSourceManager {
         return true;
     }
 
-    protected synchronized VisionSourceManagerState getVsmState() {
+    public synchronized VisionSourceManagerState getVsmState() {
         var ret = new VisionSourceManagerState();
 
         ret.allConnectedCameras = filterAllowedDevices(getConnectedCameras());

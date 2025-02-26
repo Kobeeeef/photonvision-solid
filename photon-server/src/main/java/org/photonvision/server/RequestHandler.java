@@ -56,6 +56,7 @@ import org.photonvision.common.util.file.ProgramDirectoryUtilities;
 import org.photonvision.vision.calibration.CameraCalibrationCoefficients;
 import org.photonvision.vision.camera.CameraQuirk;
 import org.photonvision.vision.camera.PVCameraInfo;
+import org.photonvision.vision.processes.VisionModule;
 import org.photonvision.vision.processes.VisionSourceManager;
 import org.zeroturnaround.zip.ZipUtil;
 
@@ -354,7 +355,10 @@ public class RequestHandler {
             logger.error("Unable to overwrite the existing program with the new program.", e);
         }
     }
-
+    public static void onStatusRequest(Context ctx) {
+       ctx.status(200);
+       ctx.json(VisionSourceManager.getInstance().vmm.getModules().stream().map(VisionModule::toStatus).toList());
+    }
     public static void onGeneralSettingsRequest(Context ctx) {
         NetworkConfig config;
         try {
