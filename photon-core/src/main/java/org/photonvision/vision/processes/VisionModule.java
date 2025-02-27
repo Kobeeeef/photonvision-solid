@@ -619,32 +619,6 @@ public class VisionModule {
         ret.put("currentPipelineIndex", pipelineManager.getRequestedIndex());
         ret.put("pipelineNicknames", pipelineManager.getPipelineNicknames());
         ret.put("deactivated", config.deactivated);
-
-        // TODO refactor into helper method
-        var temp = new HashMap<Integer, HashMap<String, Object>>();
-        var videoModes = visionSource.getSettables().getAllVideoModes();
-
-        for (var k : videoModes.keySet()) {
-            var internalMap = new HashMap<String, Object>();
-
-            internalMap.put("width", videoModes.get(k).width);
-            internalMap.put("height", videoModes.get(k).height);
-            internalMap.put("fps", videoModes.get(k).fps);
-            internalMap.put(
-                    "pixelFormat",
-                    ((videoModes.get(k) instanceof LibcameraGpuSource.FPSRatedVideoMode)
-                            ? "kPicam"
-                            : videoModes.get(k).pixelFormat.toString())
-                            .substring(1)); // Remove the k prefix
-
-            temp.put(k, internalMap);
-        }
-
-        if (videoModes.isEmpty()) {
-            logger.error("no video modes, guhhhhh");
-        }
-
-        ret.put("videoFormatList", temp);
         ret.put("outputStreamPort", this.outputStreamPort);
         ret.put("inputStreamPort", this.inputStreamPort);
         ret.put("isConnected", visionSource.getFrameProvider().isConnected());
