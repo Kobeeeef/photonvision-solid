@@ -34,6 +34,8 @@ import org.photonvision.common.dataflow.DataChangeService;
 import org.photonvision.common.dataflow.DataChangeService.SubscriberHandle;
 import org.photonvision.common.dataflow.events.OutgoingUIEvent;
 import org.photonvision.common.dataflow.networktables.NTDataPublisher;
+import org.photonvision.common.dataflow.networktables.NetworkTablesManager;
+import org.photonvision.common.dataflow.networktables.XTablesManager;
 import org.photonvision.common.dataflow.statusLEDs.StatusLEDConsumer;
 import org.photonvision.common.dataflow.websocket.UICameraConfiguration;
 import org.photonvision.common.dataflow.websocket.UIDataPublisher;
@@ -623,6 +625,8 @@ public class VisionModule {
         ret.put("inputStreamPort", this.inputStreamPort);
         ret.put("isConnected", visionSource.getFrameProvider().isConnected());
         ret.put("hasConnected", visionSource.getFrameProvider().hasConnected());
+        ret.put("ntConnected", NetworkTablesManager.getInstance().isConnected());
+        ret.put("xtConnected", XTablesManager.getInstance().isConnected());
 
         return ret;
     }

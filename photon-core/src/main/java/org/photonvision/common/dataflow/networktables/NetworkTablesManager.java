@@ -18,15 +18,8 @@
 package org.photonvision.common.dataflow.networktables;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
-import edu.wpi.first.networktables.LogMessage;
-import edu.wpi.first.networktables.NetworkTable;
-import edu.wpi.first.networktables.NetworkTableEvent;
+import edu.wpi.first.networktables.*;
 import edu.wpi.first.networktables.NetworkTableEvent.Kind;
-import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.StringSubscriber;
-import java.io.IOException;
-import java.util.EnumSet;
-import java.util.HashMap;
 import org.photonvision.PhotonVersion;
 import org.photonvision.common.configuration.ConfigManager;
 import org.photonvision.common.configuration.NetworkConfig;
@@ -41,6 +34,10 @@ import org.photonvision.common.scripting.ScriptEventType;
 import org.photonvision.common.scripting.ScriptManager;
 import org.photonvision.common.util.TimedTaskManager;
 import org.photonvision.common.util.file.JacksonUtils;
+
+import java.io.IOException;
+import java.util.EnumSet;
+import java.util.HashMap;
 
 public class NetworkTablesManager {
     private static final Logger logger =
@@ -256,6 +253,14 @@ public class NetworkTablesManager {
             logger.error(
                     "[NetworkTablesManager] Could not connect to the robot! Will retry in the background...");
         }
+    }
+
+    public NetworkTableInstance getNtInstance() {
+        return ntInstance;
+    }
+
+    public boolean isConnected() {
+        return ntInstance.isConnected();
     }
 
     public long getTimeSinceLastPong() {
